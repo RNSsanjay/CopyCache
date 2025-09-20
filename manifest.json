@@ -4,10 +4,10 @@
   "version": "1.0",
   "description": "Manage copied text and chat with Gemini AI",
   "icons": {
-    "16": "images/copycache.png",
-    "32": "images/copycache.png",
-    "48": "images/copycache.png",
-    "128": "images/copycache.png"
+    "16": "images/copynew.png",
+    "32": "images/copynew.png",
+    "48": "images/copynew.png",
+    "128": "images/copynew.png"
   },
   "permissions": [
     "clipboardRead",
@@ -27,10 +27,10 @@
   "action": {
     "default_title": "CopyCache",
     "default_icon": {
-      "16": "images/copycache.png",
-      "32": "images/copycache.png",
-      "48": "images/copycache.png",
-      "128": "images/copycache.png"
+      "16": "images/copynew.png",
+      "32": "images/copynew.png",
+      "48": "images/copynew.png",
+      "128": "images/copynew.png"
     }
   },
   "host_permissions": [
