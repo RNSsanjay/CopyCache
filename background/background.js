@@ -2,47 +2,53 @@
 
 console.log('CopyCache background script starting...');
 
-// Store window ID to track our extension window
-let copyCacheWindowId = null;
+// Storage for clipboard monitoring
+let lastClipboardText = '';
+const MAX_ITEMS = 200;
 
+// Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
   console.log('CopyCache extension installed');
-  
-  // Initialize storage
   chrome.storage.local.set({ copies: [] }, () => {
     console.log('Storage initialized');
   });
 });
 
-// Handle extension startup
 chrome.runtime.onStartup.addListener(() => {
   console.log('CopyCache extension started');
 });
 
-// Handle window removal to clear stored window ID
-chrome.windows.onRemoved.addListener((windowId) => {
-  if (windowId === copyCacheWindowId) {
-    copyCacheWindowId = null;
-    console.log('CopyCache window closed, cleared window ID');
-  }
-});
-
-// Handle action button click to inject side panel
+// Handle extension icon clicks
 chrome.action.onClicked.addListener(async (tab) => {
-  console.log('Extension icon clicked');
+  console.log('Extension icon clicked for tab:', tab.id);
   
   try {
-    // Inject the side panel into the current tab
+    // Check if we can inject scripts into this tab
+    const url = tab.url;
+    if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || 
+        url.startsWith('edge://') || url.startsWith('about:') || url.startsWith('moz-extension://')) {
+      console.log('Cannot inject into system page, opening popup instead');
+      await openFallbackTab();
+      return;
+    }
+
+    // Try to inject the side panel
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: toggleCopyCacheSidePanel
     });
     
-    console.log('CopyCache side panel toggled');
+    console.log('CopyCache side panel injected successfully');
   } catch (error) {
     console.error('Error injecting side panel:', error);
-    
-    // Fallback: open in new tab if injection fails
+    console.log('Opening fallback tab due to injection failure');
+    await openFallbackTab();
+  }
+});
+
+// Fallback function to open in new tab
+async function openFallbackTab() {
+  try {
     const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('popup/popup.html') });
     
     if (tabs.length > 0) {
@@ -54,41 +60,300 @@ chrome.action.onClicked.addListener(async (tab) => {
         active: true
       });
     }
+  } catch (error) {
+    console.error('Error opening fallback tab:', error);
   }
+}
+
+// Main function to inject into web pages
+function toggleCopyCacheSidePanel() {
+  try {
+    const PANEL_ID = 'copycache-side-panel';
+    const existingPanel = document.getElementById(PANEL_ID);
+    
+    if (existingPanel) {
+      // Remove existing panel with animation
+      existingPanel.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (existingPanel.parentNode) {
+          existingPanel.remove();
+        }
+      }, 300);
+      return;
+    }
+    
+    // Create side panel
+    const panel = document.createElement('div');
+    panel.id = PANEL_ID;
+    panel.style.cssText = 
+      'position: fixed;' +
+      'top: 0;' +
+      'right: 0;' +
+      'width: 420px;' +
+      'height: 100vh;' +
+      'background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);' +
+      'color: white;' +
+      'z-index: 2147483647;' +
+      'box-shadow: -5px 0 25px rgba(0, 0, 0, 0.6);' +
+      'border-left: 2px solid rgba(255, 255, 255, 0.2);' +
+      'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;' +
+      'overflow: hidden;' +
+      'transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);' +
+      'transform: translateX(100%);' +
+      'backdrop-filter: blur(10px);';
+    
+    // Panel content
+    panel.innerHTML = 
+      '<div style="height: 100%; display: flex; flex-direction: column;">' +
+        '<!-- Header -->' +
+        '<div style="background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding: 20px; display: flex; align-items: center; justify-content: space-between;">' +
+          '<div style="display: flex; align-items: center; gap: 12px;">' +
+            '<div style="width: 60px; height: 48px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05)); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255, 255, 255, 0.3); position: relative; overflow: hidden;">' +
+              '<div style="position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%); animation: slideLeftRight 3s ease-in-out infinite;"></div>' +
+              '<span style="font-size: 18px; font-weight: 800; z-index: 1; position: relative; letter-spacing: 2px; color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;">RNS</span>' +
+            '</div>' +
+            '<div>' +
+              '<h2 style="margin: 0; font-size: 20px; font-weight: 700;">CopyCache</h2>' +
+              '<p style="margin: 0; font-size: 13px; color: rgba(255, 255, 255, 0.7);">Smart Clipboard Manager</p>' +
+            '</div>' +
+          '</div>' +
+          '<button id="copycache-close-btn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; transition: all 0.2s ease;">×</button>' +
+        '</div>' +
+        
+        '<!-- Content Area -->' +
+        '<div style="flex: 1; overflow-y: auto; padding: 20px;">' +
+          '<!-- Quick Actions -->' +
+          '<div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 20px; margin-bottom: 20px;">' +
+            '<h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Quick Actions</h3>' +
+            '<div style="display: grid; gap: 12px;">' +
+              '<button onclick="openFullCopyCache()" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 14px 16px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; font-size: 14px;">' +
+                '<span style="font-size: 18px;">📋</span>' +
+                '<span>View Full Clipboard History</span>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          
+          '<!-- Recent Clipboard Items -->' +
+          '<div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 20px; margin-bottom: 20px;">' +
+            '<h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Recent Clips</h3>' +
+            '<div id="copycache-clips" style="display: grid; gap: 12px; max-height: 350px; overflow-y: auto;">' +
+              '<div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 16px; text-align: center; color: rgba(255, 255, 255, 0.6);">' +
+                '<p style="margin: 0; font-size: 14px;">Loading clipboard items...</p>' +
+                '<small style="color: rgba(255, 255, 255, 0.4);">Copy text to see it here</small>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        
+        '<!-- Chat Input Area -->' +
+        '<div style="background: linear-gradient(180deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.98)); backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.15); padding: 20px;">' +
+          '<div style="display: flex; gap: 12px; align-items: end;">' +
+            '<textarea placeholder="Type your message here..." style="width: 100%; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15); color: white; padding: 16px 20px; border-radius: 16px; resize: none; min-height: 52px; max-height: 140px; font-family: inherit; font-size: 15px; outline: none; box-sizing: border-box;"></textarea>' +
+            '<button style="background: linear-gradient(135deg, rgba(74, 144, 226, 0.8), rgba(56, 119, 200, 0.9)); border: 2px solid rgba(255, 255, 255, 0.2); color: white; width: 52px; height: 52px; border-radius: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px;">→</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      
+      '<style>' +
+        '@keyframes slideLeftRight {' +
+          '0% { transform: translateX(-100%); opacity: 0; }' +
+          '50% { opacity: 1; }' +
+          '100% { transform: translateX(100%); opacity: 0; }' +
+        '}' +
+      '</style>';
+    
+    // Add to page
+    document.body.appendChild(panel);
+    
+    // Animate in
+    setTimeout(() => {
+      panel.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Setup event handlers
+    const closeBtn = document.getElementById('copycache-close-btn');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        panel.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (panel.parentNode) {
+            panel.remove();
+          }
+        }, 300);
+      };
+    }
+    
+    // Global functions for the panel
+    window.openFullCopyCache = () => {
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        const url = chrome.runtime.getURL('popup/popup.html');
+        window.open(url, '_blank');
+      }
+    };
+    
+    window.copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showCopyFeedback();
+      } catch (error) {
+        console.error('Failed to copy:', error);
+      }
+    };
+    
+    function showCopyFeedback() {
+      const feedback = document.createElement('div');
+      feedback.style.cssText = 
+        'position: fixed; top: 20px; right: 440px; background: rgba(255, 255, 255, 0.9); color: black; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 500; z-index: 2147483648; transition: all 0.3s ease; opacity: 0;';
+      feedback.textContent = 'Copied to clipboard!';
+      document.body.appendChild(feedback);
+      
+      setTimeout(() => feedback.style.opacity = '1', 10);
+      setTimeout(() => {
+        feedback.style.opacity = '0';
+        setTimeout(() => {
+          if (feedback.parentNode) {
+            feedback.remove();
+          }
+        }, 300);
+      }, 2000);
+    }
+    
+    // Load clipboard items
+    loadClipboardItems();
+    
+    // Prevent panel from interfering with page
+    panel.addEventListener('mousedown', (e) => e.stopPropagation());
+    panel.addEventListener('click', (e) => e.stopPropagation());
+    panel.addEventListener('keydown', (e) => e.stopPropagation());
+    
+  } catch (error) {
+    console.error('Error creating side panel:', error);
+  }
+  
+  // Function to load clipboard items into the panel
+  function loadClipboardItems() {
+    if (typeof chrome === 'undefined' || !chrome.storage) return;
+    
+    chrome.storage.local.get(['copies'], (result) => {
+      const copies = result.copies || [];
+      const clipsContainer = document.getElementById('copycache-clips');
+      
+      if (!clipsContainer) return;
+      
+      if (copies.length === 0) {
+        clipsContainer.innerHTML = 
+          '<div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 16px; text-align: center; color: rgba(255, 255, 255, 0.6);">' +
+            '<p style="margin: 0; font-size: 14px;">No clipboard items yet</p>' +
+            '<small style="color: rgba(255, 255, 255, 0.4);">Copy text to see it here</small>' +
+          '</div>';
+        return;
+      }
+      
+      const itemsHtml = copies.slice(0, 5).map((item) => {
+        const text = typeof item === 'string' ? item : item.text;
+        const type = typeof item === 'object' && item.type ? item.type.toUpperCase() : 'TEXT';
+        const preview = text.length > 60 ? text.substring(0, 60) + '...' : text;
+        const safeText = text.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
+        
+        let typeColor = 'rgba(255, 255, 255, 0.1)';
+        if (type === 'URL') typeColor = 'rgba(74, 144, 226, 0.2)';
+        else if (type === 'EMAIL') typeColor = 'rgba(34, 197, 94, 0.2)';
+        else if (type === 'CODE') typeColor = 'rgba(239, 68, 68, 0.2)';
+        
+        return (
+          '<div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s ease;" ' +
+          'onmouseover="this.style.background=\'rgba(255, 255, 255, 0.12)\'; this.style.transform=\'translateY(-1px)\'" ' +
+          'onmouseout="this.style.background=\'rgba(255, 255, 255, 0.08)\'; this.style.transform=\'translateY(0)\'" ' +
+          'onclick="copyToClipboard(\'' + safeText + '\');">' +
+            '<p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.9); font-size: 13px; line-height: 1.4;">' + preview + '</p>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+              '<small style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">Just now • ' + text.length + ' chars</small>' +
+              '<span style="background: ' + typeColor + '; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: rgba(255, 255, 255, 0.8);">' + type + '</span>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+      
+      clipsContainer.innerHTML = itemsHtml;
+    });
+  }
+}
+
+// Clipboard management functions
+function detectContentType(text) {
+  if (!text) return 'empty';
+  
+  const urlRegex = /^https?:\/\/[^\s]+$/i;
+  if (urlRegex.test(text.trim())) return 'url';
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRegex.test(text.trim())) return 'email';
+  
+  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+  if (phoneRegex.test(text.replace(/[\s\-\(\)]/g, ''))) return 'phone';
+  
+  if (!isNaN(text.trim()) && text.trim() !== '') return 'number';
+  
+  if (text.includes('{') || text.includes('function') || text.includes('class ') || text.includes('import ')) return 'code';
+  
+  if (text.length > 100) return 'longtext';
+  
+  return 'text';
+}
+
+async function addClipboardItem(text) {
+  if (!text || text === lastClipboardText) return;
+  
+  try {
+    const result = await chrome.storage.local.get(['copies']);
+    let copies = result.copies || [];
+    
+    copies = copies.filter(item => {
+      const itemText = typeof item === 'string' ? item : item.text;
+      return itemText !== text;
+    });
+    
+    const newItem = {
+      text: text,
+      timestamp: Date.now(),
+      type: detectContentType(text),
+      id: Date.now() + Math.random()
+    };
+    
+    copies.unshift(newItem);
+    
+    if (copies.length > MAX_ITEMS) {
+      copies = copies.slice(0, MAX_ITEMS);
+    }
+    
+    await chrome.storage.local.set({ copies });
+    lastClipboardText = text;
+    console.log('Added clipboard item:', text.substring(0, 50) + '...');
+  } catch (error) {
+    console.error('Error adding clipboard item:', error);
+  }
+}
+
+// Message handling
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Background received message:', request);
+  
+  if (request.action === 'ping') {
+    sendResponse({ status: 'pong' });
+  } else if (request.action === 'addClipboardItem') {
+    addClipboardItem(request.text);
+    sendResponse({ status: 'added' });
+  } else if (request.action === 'getClipboardItems') {
+    chrome.storage.local.get(['copies'], (result) => {
+      sendResponse({ copies: result.copies || [] });
+    });
+    return true;
+  }
+  
+  return true;
 });
 
-// Function to be injected into the page
-function toggleCopyCacheSidePanel() {
-  const PANEL_ID = 'copycache-side-panel';
-  const existingPanel = document.getElementById(PANEL_ID);
-  
-  if (existingPanel) {
-    // Remove existing panel with animation
-    existingPanel.style.transform = 'translateX(100%)';
-    setTimeout(() => existingPanel.remove(), 300);
-    return;
-  }
-  
-  // Create side panel
-  const panel = document.createElement('div');
-  panel.id = PANEL_ID;
-  panel.style.cssText = `
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 420px;
-    height: 100vh;
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    color: white;
-    z-index: 2147483647;
-    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.6);
-    border-left: 2px solid rgba(255, 255, 255, 0.2);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    overflow: hidden;
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    transform: translateX(100%);
-    backdrop-filter: blur(10px);
-  `;
+console.log('CopyCache background script loaded successfully');
   
   // Panel content with improved UI
   panel.innerHTML = `
@@ -578,11 +843,11 @@ function toggleCopyCacheSidePanel() {
   panel.addEventListener('mousedown', (e) => e.stopPropagation());
   panel.addEventListener('click', (e) => e.stopPropagation());
   panel.addEventListener('keydown', (e) => e.stopPropagation());
-}
+
 
 // Clipboard monitoring and management
-let lastClipboardText = '';
-const MAX_ITEMS = 100;
+// let lastClipboardText = '';
+// const MAX_ITEMS = 100;
 
 // Function to add new clipboard item
 async function addClipboardItem(text) {
