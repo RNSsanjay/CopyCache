@@ -35,11 +35,23 @@ app.post('/chat', async (req, res) => {
   }
 
   try {
-    const copiesText = copies && copies.length > 0 
-      ? `The user has these copied items: ${copies.join(', ')}. ` 
+    const copiesText = copies && copies.length > 0
+      ? `The user has these copied items: ${copies.join(', ')}. `
       : 'The user has no copied items. ';
-    
-    const prompt = `You are a helpful assistant. ${copiesText}User message: ${message}`;
+
+    const prompt = `You are a specialized assistant that ONLY answers questions about the user's copied text content. You MUST NOT answer general questions, provide information about topics not in the copied content, or engage in conversation about anything else.
+
+${copiesText}
+
+IMPORTANT RULES:
+- Only answer questions that are directly related to the copied content above
+- If the question is not about the copied content, respond with: "I can only help with questions about your copied text content."
+- Do not provide general knowledge or information about topics not mentioned in the copied items
+- Be concise and directly address the content in the copied items
+- If no copied items exist, inform the user they need to copy some text first
+
+User question: ${message}`;
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
