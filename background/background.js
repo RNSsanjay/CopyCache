@@ -2,6 +2,9 @@
 
 console.log('CopyCache background script starting...');
 
+// Store window ID to track our extension window
+let copyCacheWindowId = null;
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('CopyCache extension installed');
   
@@ -16,71 +19,87 @@ chrome.runtime.onStartup.addListener(() => {
   console.log('CopyCache extension started');
 });
 
+// Handle window removal to clear stored window ID
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === copyCacheWindowId) {
+    copyCacheWindowId = null;
+    console.log('CopyCache window closed, cleared window ID');
+  }
+});
+
 // Handle action button click to open window
 chrome.action.onClicked.addListener(async (tab) => {
   console.log('Extension icon clicked');
   
-  // Check if window already exists
-  const windows = await chrome.windows.getAll({ type: 'popup' });
-  const existingWindow = windows.find(window => window.type === 'popup');
-  
-  if (existingWindow) {
-    // Focus existing window
-    chrome.windows.update(existingWindow.id, { focused: true });
-  } else {
-    // Get current screen info
+  // Check if our tracked window still exists
+  if (copyCacheWindowId) {
     try {
-      const currentWindow = await chrome.windows.getCurrent();
-      const displays = await chrome.system.display.getInfo();
-      
-      // Use the primary display or current display
-      const primaryDisplay = displays.find(display => display.isPrimary) || displays[0];
-      const screenWidth = primaryDisplay.bounds.width;
-      const screenHeight = primaryDisplay.bounds.height;
-      
-      const windowWidth = 450;
-      const windowHeight = 650;
-      const margin = 20;
-      
-      // Position in top-right corner with margin
-      const left = screenWidth - windowWidth - margin;
-      const top = margin;
-      
-      // Create new window positioned on the right side
-      chrome.windows.create({
-        url: 'popup/popup.html',
-        type: 'popup',
-        width: windowWidth,
-        height: windowHeight,
-        left: left,
-        top: top,
-        focused: true,
-        state: 'normal'
-      }, (window) => {
-        console.log('CopyCache window created:', window.id);
-        console.log(`Window positioned at: left=${left}, top=${top}, width=${windowWidth}, height=${windowHeight}`);
-      });
-      
+      const existingWindow = await chrome.windows.get(copyCacheWindowId);
+      if (existingWindow) {
+        // Focus existing window
+        chrome.windows.update(copyCacheWindowId, { focused: true });
+        return;
+      }
     } catch (error) {
-      console.error('Error getting display info:', error);
-      
-      // Fallback positioning
-      const windowWidth = 450;
-      const windowHeight = 650;
-      
-      chrome.windows.create({
-        url: 'popup/popup.html',
-        type: 'popup',
-        width: windowWidth,
-        height: windowHeight,
-        left: 1450, // Fallback position
-        top: 20,
-        focused: true,
-        state: 'normal'
-      }, (window) => {
-        console.log('CopyCache window created with fallback positioning:', window.id);
-      });
+      // Window doesn't exist anymore, clear the ID
+      copyCacheWindowId = null;
     }
+  }
+  
+  // Create new window if none exists
+  try {
+    const currentWindow = await chrome.windows.getCurrent();
+    const displays = await chrome.system.display.getInfo();
+    
+    // Use the primary display or current display
+    const primaryDisplay = displays.find(display => display.isPrimary) || displays[0];
+    const screenWidth = primaryDisplay.bounds.width;
+    const screenHeight = primaryDisplay.bounds.height;
+    
+    const windowWidth = 450;
+    const windowHeight = 650;
+    const margin = 20;
+    
+    // Position in top-right corner with margin
+    const left = screenWidth - windowWidth - margin;
+    const top = margin;
+    
+    // Create new window positioned on the right side
+    chrome.windows.create({
+      url: 'popup/popup.html',
+      type: 'popup',
+      width: windowWidth,
+      height: windowHeight,
+      left: left,
+      top: top,
+      focused: true,
+      state: 'normal'
+    }, (window) => {
+      copyCacheWindowId = window.id;
+      console.log('CopyCache window created:', window.id);
+      console.log(`Window positioned at: left=${left}, top=${top}, width=${windowWidth}, height=${windowHeight}`);
+    });
+    
+  } catch (error) {
+    console.error('Error getting display info:', error);
+    
+    // Fallback positioning
+    const windowWidth = 450;
+    const windowHeight = 650;
+    
+    chrome.windows.create({
+      url: 'popup/popup.html',
+      type: 'popup',
+      width: windowWidth,
+      height: windowHeight,
+      left: 1450, // Fallback position
+      top: 20,
+      focused: true,
+      state: 'normal'
+    }, (window) => {
+      copyCacheWindowId = window.id;
+      console.log('CopyCache window created with fallback positioning:', window.id);
+    });
   }
 });
 
