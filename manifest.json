@@ -25,7 +25,6 @@
     }
   ],
   "action": {
-    "default_popup": "popup/popup.html",
     "default_title": "CopyCache",
     "default_icon": {
       "16": "images/copycache.png",

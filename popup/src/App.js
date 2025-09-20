@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import ClipboardPage from './pages/clipboard';
 import ChatPage from './pages/chat';
+import AnimatedLogo from './components/AnimatedLogo';
 import './professional-theme.css';
 
 function App() {
@@ -103,18 +104,7 @@ function App() {
         <div className="bg-black/80 backdrop-blur-lg border-b border-white/20 p-6 shadow-lg">
           <div className="flex items-center gap-4 mb-3">
             <div className="relative">
-              <img 
-                src="/images/copycache.png" 
-                alt="CopyCache Logo" 
-                className="w-12 h-12 rounded-xl shadow-lg ring-2 ring-white/30 bg-white/10 p-1"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-400 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/30 hidden">
-                <span className="text-black font-bold text-lg">CC</span>
-              </div>
+              <AnimatedLogo size="md" className="ring-2 ring-white/30 rounded-xl" />
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full animate-pulse border-2 border-black"></div>
             </div>
             <div className="flex-1">

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CopyCache - Animated Logo Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .demo-container {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .logo-demo {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 2rem auto;
+        }
+
+        .logo-demo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0.8;
+        }
+
+        .animation-overlay {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
+
+        .slide-left-to-right {
+            position: absolute;
+            inset: 0;
+            width: 50%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%);
+            animation: slideLeftToRight 1s ease-in-out;
+        }
+
+        .slide-right-to-left {
+            position: absolute;
+            inset: 0;
+            width: 50%;
+            right: 0;
+            background: linear-gradient(270deg, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%);
+            animation: slideRightToLeft 1s ease-in-out;
+        }
+
+        @keyframes slideLeftToRight {
+            0% {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideRightToLeft {
+            0% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+
+        .glow-border {
+            position: absolute;
+            inset: 0;
+            border-radius: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+            }
+            100% {
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4);
+            }
+        }
+
+        .main-logo {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+        }
+
+        .main-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #ccc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .description {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #ccc;
+        }
+
+        .animation-status {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            padding: 1rem 2rem;
+            margin-top: 2rem;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>CopyCache</h1>
+        <p class="description">Professional Animated Logo Demo</p>
+        
+        <div class="logo-demo" id="logoDemo">
+            <!-- Background logo -->
+            <img src="images/copynew.png" alt="CopyCache Logo" style="opacity: 0.3;">
+            
+            <!-- Animation overlay -->
+            <div class="animation-overlay">
+                <div class="slide-left-to-right" id="leftToRight" style="display: none;"></div>
+                <div class="slide-right-to-left" id="rightToLeft" style="display: none;"></div>
+            </div>
+            
+            <!-- Main logo -->
+            <div class="main-logo">
+                <img src="images/copynew.png" alt="CopyCache Logo">
+            </div>
+            
+            <!-- Glowing border -->
+            <div class="glow-border"></div>
+        </div>
+
+        <div class="animation-status">
+            <div>Animation Phase: <span id="animationPhase">Left to Right</span></div>
+            <div>Cycle: <span id="cycleCount">1</span></div>
+            <div>Next Change: <span id="nextChange">3s</span></div>
+        </div>
+    </div>
+
+    <script>
+        let animationPhase = 'leftToRight';
+        let cycleCount = 1;
+        let countdown = 3;
+
+        const leftToRightEl = document.getElementById('leftToRight');
+        const rightToLeftEl = document.getElementById('rightToLeft');
+        const animationPhaseEl = document.getElementById('animationPhase');
+        const cycleCountEl = document.getElementById('cycleCount');
+        const nextChangeEl = document.getElementById('nextChange');
+
+        function updateAnimation() {
+            if (animationPhase === 'leftToRight') {
+                leftToRightEl.style.display = 'block';
+                rightToLeftEl.style.display = 'none';
+                leftToRightEl.style.animation = 'slideLeftToRight 1s ease-in-out';
+                animationPhaseEl.textContent = 'Left to Right';
+                
+                setTimeout(() => {
+                    leftToRightEl.style.display = 'none';
+                }, 1000);
+                
+                animationPhase = 'rightToLeft';
+            } else {
+                rightToLeftEl.style.display = 'block';
+                leftToRightEl.style.display = 'none';
+                rightToLeftEl.style.animation = 'slideRightToLeft 1s ease-in-out';
+                animationPhaseEl.textContent = 'Right to Left';
+                
+                setTimeout(() => {
+                    rightToLeftEl.style.display = 'none';
+                }, 1000);
+                
+                animationPhase = 'leftToRight';
+                cycleCount++;
+                cycleCountEl.textContent = cycleCount;
+            }
+        }
+
+        function updateCountdown() {
+            nextChangeEl.textContent = countdown + 's';
+            countdown--;
+            
+            if (countdown < 0) {
+                countdown = 3;
+                updateAnimation();
+            }
+        }
+
+        // Start the animation cycle
+        updateAnimation();
+        setInterval(updateAnimation, 3000);
+        setInterval(updateCountdown, 1000);
+    </script>
+</body>
+</html>
