@@ -11,11 +11,35 @@ app.use(express.json());
 const genAI = new GoogleGenerativeAI('AIzaSyDkHhujvXjQW243snouTtpCISdM97zH4mU');
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CopyCache Server is running!', 
+    endpoints: {
+      '/': 'Server status',
+      '/chat': 'POST - Chat with Gemini AI'
+    }
+  });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
 app.post('/chat', async (req, res) => {
   const { message, copies } = req.body;
 
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
   try {
-    const prompt = `You are a helpful assistant. The user has these copied items: ${copies.join(', ')}. User message: ${message}`;
+    const copiesText = copies && copies.length > 0 
+      ? `The user has these copied items: ${copies.join(', ')}. ` 
+      : 'The user has no copied items. ';
+    
+    const prompt = `You are a helpful assistant. ${copiesText}User message: ${message}`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -23,7 +47,7 @@ app.post('/chat', async (req, res) => {
     res.json({ response: text });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    res.status(500).json({ error: 'Failed to generate response', details: error.message });
   }
 });
 

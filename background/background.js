@@ -1,10 +1,28 @@
 // Background script for CopyCache extension
 
+console.log('CopyCache background script starting...');
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('CopyCache extension installed');
+  
+  // Initialize storage
+  chrome.storage.local.set({ copies: [] }, () => {
+    console.log('Storage initialized');
+  });
 });
 
-// Listen for clipboard changes or copy events
-// Note: Direct clipboard access is limited, but we can use content scripts
+// Handle extension startup
+chrome.runtime.onStartup.addListener(() => {
+  console.log('CopyCache extension started');
+});
 
-// For now, we'll rely on content script to capture copies
+// Handle messages from content scripts or popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Background received message:', request);
+  
+  if (request.action === 'ping') {
+    sendResponse({ status: 'pong' });
+  }
+  
+  return true;
+});
