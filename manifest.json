@@ -13,8 +13,7 @@
     "clipboardRead",
     "clipboardWrite",
     "storage",
-    "activeTab",
-    "system.display"
+    "activeTab"
   ],
   "background": {
     "service_worker": "background/background.js"

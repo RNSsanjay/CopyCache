@@ -27,79 +27,27 @@ chrome.windows.onRemoved.addListener((windowId) => {
   }
 });
 
-// Handle action button click to open window
+// Handle action button click to open in browser tab
 chrome.action.onClicked.addListener(async (tab) => {
   console.log('Extension icon clicked');
   
-  // Check if our tracked window still exists
-  if (copyCacheWindowId) {
-    try {
-      const existingWindow = await chrome.windows.get(copyCacheWindowId);
-      if (existingWindow) {
-        // Focus existing window
-        chrome.windows.update(copyCacheWindowId, { focused: true });
-        return;
-      }
-    } catch (error) {
-      // Window doesn't exist anymore, clear the ID
-      copyCacheWindowId = null;
-    }
-  }
+  // Check if we already have a CopyCache tab open
+  const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('popup/popup.html') });
   
-  // Create new window if none exists
-  try {
-    const currentWindow = await chrome.windows.getCurrent();
-    const displays = await chrome.system.display.getInfo();
-    
-    // Use the primary display or current display
-    const primaryDisplay = displays.find(display => display.isPrimary) || displays[0];
-    const screenWidth = primaryDisplay.bounds.width;
-    const screenHeight = primaryDisplay.bounds.height;
-    
-    const windowWidth = 450;
-    const windowHeight = 650;
-    const margin = 20;
-    
-    // Position in top-right corner with margin
-    const left = screenWidth - windowWidth - margin;
-    const top = margin;
-    
-    // Create new window positioned on the right side
-    chrome.windows.create({
-      url: 'popup/popup.html',
-      type: 'popup',
-      width: windowWidth,
-      height: windowHeight,
-      left: left,
-      top: top,
-      focused: true,
-      state: 'normal'
-    }, (window) => {
-      copyCacheWindowId = window.id;
-      console.log('CopyCache window created:', window.id);
-      console.log(`Window positioned at: left=${left}, top=${top}, width=${windowWidth}, height=${windowHeight}`);
+  if (tabs.length > 0) {
+    // Focus existing tab
+    const existingTab = tabs[0];
+    await chrome.tabs.update(existingTab.id, { active: true });
+    await chrome.windows.update(existingTab.windowId, { focused: true });
+    console.log('Focused existing CopyCache tab');
+  } else {
+    // Create new tab with CopyCache
+    const newTab = await chrome.tabs.create({
+      url: chrome.runtime.getURL('popup/popup.html'),
+      active: true
     });
-    
-  } catch (error) {
-    console.error('Error getting display info:', error);
-    
-    // Fallback positioning
-    const windowWidth = 450;
-    const windowHeight = 650;
-    
-    chrome.windows.create({
-      url: 'popup/popup.html',
-      type: 'popup',
-      width: windowWidth,
-      height: windowHeight,
-      left: 1450, // Fallback position
-      top: 20,
-      focused: true,
-      state: 'normal'
-    }, (window) => {
-      copyCacheWindowId = window.id;
-      console.log('CopyCache window created with fallback positioning:', window.id);
-    });
+    copyCacheWindowId = newTab.id;
+    console.log('Created new CopyCache tab:', newTab.id);
   }
 });
 
