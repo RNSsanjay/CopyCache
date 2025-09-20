@@ -1,83 +1,55 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #000;
-  color: #fff;
+/* Custom animations for slide-in effect */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .app {
-  width: 400px;
-  padding: 20px;
-  background-color: #000;
-  color: #fff;
+  @apply w-[500px] h-screen p-5 bg-black text-white animate-[slideInFromRight_0.4s_ease-out] overflow-y-auto;
 }
 
 h1, h2 {
-  color: #fff;
+  @apply text-white;
 }
 
 .copies {
-  margin-bottom: 20px;
+  @apply mb-5;
 }
 
 .copy-item {
-  background-color: #333;
-  padding: 10px;
-  margin: 5px 0;
-  border-radius: 5px;
+  @apply bg-gray-600 p-2.5 my-1.5 rounded;
 }
 
 .chat {
-  margin-top: 20px;
+  @apply mt-5;
 }
 
 .chat-history {
-  height: 200px;
-  overflow-y: auto;
-  background-color: #111;
-  padding: 10px;
-  border-radius: 5px;
-  margin-bottom: 10px;
+  @apply h-50 overflow-y-auto bg-gray-900 p-2.5 rounded mb-2.5;
 }
 
 .chat-message {
-  margin: 5px 0;
-  padding: 5px;
-  border-radius: 5px;
+  @apply my-1.5 p-1.5 rounded;
 }
 
 .chat-message.user {
-  background-color: #444;
-  text-align: right;
+  @apply bg-gray-500 text-right;
 }
 
 .chat-message.assistant {
-  background-color: #222;
+  @apply bg-gray-800;
 }
 
 input {
-  width: 70%;
-  padding: 10px;
-  background-color: #333;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
+  @apply w-[70%] p-2.5 bg-gray-600 text-white border-none rounded;
 }
 
 button {
-  width: 25%;
-  padding: 10px;
-  background-color: #555;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #777;
+  @apply w-[25%] p-2.5 bg-gray-500 text-white border-none rounded cursor-pointer hover:bg-gray-400;
 }

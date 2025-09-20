@@ -1,6 +1,5 @@
 /* global chrome */
 import React, { useState, useEffect } from 'react';
-import './App.css';
 
 function App() {
   const [copies, setCopies] = useState([]);
@@ -37,31 +36,36 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <h1>CopyCache</h1>
-      <div className="copies">
-        <h2>Copied Items</h2>
+    <div className="w-[500px] h-screen p-5 bg-black text-white animate-[slideInFromRight_0.4s_ease-out] overflow-y-auto">
+      <h1 className="text-2xl font-bold mb-4">CopyCache</h1>
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold mb-3">Copied Items</h2>
         {copies.map((copy, index) => (
-          <div key={index} className="copy-item">{copy}</div>
+          <div key={index} className="bg-gray-600 p-2.5 my-1.5 rounded">{copy}</div>
         ))}
       </div>
-      <div className="chat">
-        <h2>Chat with Gemini</h2>
-        <div className="chat-history">
+      <div className="mt-5">
+        <h2 className="text-xl font-semibold mb-3">Chat with Gemini</h2>
+        <div className="h-50 overflow-y-auto bg-gray-900 p-2.5 rounded mb-2.5">
           {chatHistory.map((msg, index) => (
-            <div key={index} className={`chat-message ${msg.role}`}>
+            <div key={index} className={`my-1.5 p-1.5 rounded ${msg.role === 'user' ? 'bg-gray-500 text-right' : 'bg-gray-800'}`}>
               {msg.content}
             </div>
           ))}
         </div>
-        <input
-          type="text"
-          value={chatMessage}
-          onChange={(e) => setChatMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleChat()}
-          placeholder="Ask about your copies..."
-        />
-        <button onClick={handleChat}>Send</button>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={chatMessage}
+            onChange={(e) => setChatMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleChat()}
+            placeholder="Ask about your copies..."
+            className="flex-1 p-2.5 bg-gray-600 text-white border-none rounded"
+          />
+          <button onClick={handleChat} className="px-4 py-2.5 bg-gray-500 text-white border-none rounded cursor-pointer hover:bg-gray-400">
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
