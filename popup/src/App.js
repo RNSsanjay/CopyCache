@@ -14,16 +14,16 @@ function App() {
   const [activeTab, setActiveTab] = useState('clipboard');
   const [isLoading, setIsLoading] = useState(true);
   
-  const typewriterMessages = [
-    "CopyCache - Smart Clipboard Manager",
-    "Manage your clipboard efficiently",
-    "Access copied content instantly",
-    "AI-powered clipboard assistant",
-    "Organize and search your copies"
-  ];
-
   // Continuous typewriter effect with 5-second cycles
   useEffect(() => {
+    const typewriterMessages = [
+      "CopyCache - Smart Clipboard Manager",
+      "Manage your clipboard efficiently",
+      "Access copied content instantly",
+      "AI-powered clipboard assistant",
+      "Organize and search your copies"
+    ];
+    
     const currentMessage = typewriterMessages[typewriterIndex];
     
     if (isTyping && typewriterText.length < currentMessage.length) {
@@ -42,7 +42,7 @@ function App() {
       }, 4000);
       return () => clearTimeout(timeout);
     }
-  }, [typewriterText, isTyping, typewriterIndex, typewriterMessages]);
+  }, [typewriterText, isTyping, typewriterIndex]);
 
   // Load copies from Windows clipboard with real-time monitoring
   useEffect(() => {

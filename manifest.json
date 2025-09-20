@@ -27,6 +27,7 @@
   ],
   "action": {
     "default_title": "CopyCache",
+    "default_popup": "popup/build/index.html",
     "default_icon": {
       "16": "images/copynew.png",
       "32": "images/copynew.png",
