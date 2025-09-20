@@ -44,7 +44,7 @@ function App() {
     }
   }, [typewriterText, isTyping, typewriterIndex, typewriterMessages]);
 
-  // Load copies from Windows clipboard
+  // Load copies from Windows clipboard with real-time monitoring
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -53,7 +53,19 @@ function App() {
         // Load existing copies from storage
         chrome.storage.local.get(['copies'], (result) => {
           if (result.copies) {
-            setCopies(result.copies);
+            // Handle both old format (strings) and new format (objects)
+            const processedCopies = result.copies.map(item => {
+              if (typeof item === 'string') {
+                return {
+                  text: item,
+                  timestamp: Date.now(),
+                  type: 'text',
+                  id: Date.now() + Math.random()
+                };
+              }
+              return item;
+            });
+            setCopies(processedCopies);
           }
           setIsLoading(false);
         });
@@ -61,9 +73,34 @@ function App() {
         // Listen for new copies in real-time
         chrome.storage.onChanged.addListener((changes, namespace) => {
           if (namespace === 'local' && changes.copies) {
-            setCopies(changes.copies.newValue || []);
+            const newCopies = changes.copies.newValue || [];
+            const processedCopies = newCopies.map(item => {
+              if (typeof item === 'string') {
+                return {
+                  text: item,
+                  timestamp: Date.now(),
+                  type: 'text',
+                  id: Date.now() + Math.random()
+                };
+              }
+              return item;
+            });
+            setCopies(processedCopies);
           }
         });
+
+        // Also manually trigger clipboard check
+        try {
+          const clipboardText = await navigator.clipboard.readText();
+          if (clipboardText) {
+            chrome.runtime.sendMessage({
+              action: 'addClipboardItem',
+              text: clipboardText
+            });
+          }
+        } catch (error) {
+          console.log('Cannot access clipboard directly:', error);
+        }
       } else {
         // Fallback when Chrome API is not available
         setCopies([]);

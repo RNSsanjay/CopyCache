@@ -216,16 +216,19 @@ function toggleCopyCacheSidePanel() {
           margin-bottom: 20px;
         ">
           <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Recent Clips</h3>
-          <div style="
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 16px;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.6);
-          ">
-            <p style="margin: 0; font-size: 14px;">No clipboard items yet</p>
-            <small style="color: rgba(255, 255, 255, 0.4);">Copy text to see it here</small>
+          <div id="copycache-clips" style="display: grid; gap: 12px; max-height: 350px; overflow-y: auto;">
+            <!-- Clipboard items will be loaded here -->
+            <div style="
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              border-radius: 10px;
+              padding: 16px;
+              text-align: center;
+              color: rgba(255, 255, 255, 0.6);
+            ">
+              <p style="margin: 0; font-size: 14px;">Loading clipboard items...</p>
+              <small style="color: rgba(255, 255, 255, 0.4);">Copy text to see it here</small>
+            </div>
           </div>
         </div>
       </div>
@@ -448,6 +451,64 @@ function toggleCopyCacheSidePanel() {
           }, 200);
         });
       }
+      
+      // Load and display clipboard items
+      function loadClipboardItems() {
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          chrome.storage.local.get(['copies'], (result) => {
+            const copies = result.copies || [];
+            const clipsContainer = document.getElementById('copycache-clips');
+            
+            if (!clipsContainer) return;
+            
+            if (copies.length === 0) {
+              clipsContainer.innerHTML = 
+                '<div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 16px; text-align: center; color: rgba(255, 255, 255, 0.6);">' +
+                '<p style="margin: 0; font-size: 14px;">No clipboard items yet</p>' +
+                '<small style="color: rgba(255, 255, 255, 0.4);">Copy text to see it here</small>' +
+                '</div>';
+              return;
+            }
+            
+            const itemsHtml = copies.slice(0, 5).map((item, index) => {
+              const text = typeof item === 'string' ? item : item.text;
+              const type = typeof item === 'object' && item.type ? item.type.toUpperCase() : 'TEXT';
+              const preview = text.length > 60 ? text.substring(0, 60) + '...' : text;
+              
+              let typeColor = 'rgba(255, 255, 255, 0.1)';
+              if (type === 'URL') typeColor = 'rgba(74, 144, 226, 0.2)';
+              else if (type === 'EMAIL') typeColor = 'rgba(34, 197, 94, 0.2)';
+              else if (type === 'CODE') typeColor = 'rgba(239, 68, 68, 0.2)';
+              
+              return 
+                '<div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s ease;" ' +
+                'onmouseover="this.style.background=\\'rgba(255, 255, 255, 0.12)\\'; this.style.transform=\\'translateY(-1px)\\'" ' +
+                'onmouseout="this.style.background=\\'rgba(255, 255, 255, 0.08)\\'; this.style.transform=\\'translateY(0)\\'" ' +
+                'onclick="copyToClipboard(\\''+text.replace(/'/g, "\\\\'")+'\\'); event.stopPropagation();">' +
+                '<p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.9); font-size: 13px; line-height: 1.4;">' + preview + '</p>' +
+                '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+                '<small style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">Just now • ' + text.length + ' chars</small>' +
+                '<span style="background: ' + typeColor + '; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: rgba(255, 255, 255, 0.8);">' + type + '</span>' +
+                '</div>' +
+                '</div>';
+            }).join('');
+            
+            clipsContainer.innerHTML = itemsHtml;
+          });
+        }
+      }
+      
+      // Load items when panel opens
+      loadClipboardItems();
+      
+      // Listen for storage changes to update items
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.onChanged.addListener((changes, namespace) => {
+          if (namespace === 'local' && changes.copies) {
+            loadClipboardItems();
+          }
+        });
+      }
     </script>
   `;
   
@@ -534,8 +595,15 @@ async function addClipboardItem(text) {
     // Remove if already exists to move to top
     copies = copies.filter(item => item !== text);
     
-    // Add to beginning
-    copies.unshift(text);
+    // Add to beginning with metadata
+    const newItem = {
+      text: text,
+      timestamp: Date.now(),
+      type: detectContentType(text),
+      id: Date.now() + Math.random()
+    };
+    
+    copies.unshift(newItem);
     
     // Limit to MAX_ITEMS
     if (copies.length > MAX_ITEMS) {
@@ -552,15 +620,83 @@ async function addClipboardItem(text) {
   }
 }
 
-// Periodic clipboard check (fallback for Windows clipboard integration)
-setInterval(async () => {
+// Function to detect content type
+function detectContentType(text) {
+  if (!text) return 'empty';
+  
+  // URL detection
+  const urlRegex = /^https?:\/\/[^\s]+$/i;
+  if (urlRegex.test(text.trim())) return 'url';
+  
+  // Email detection
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRegex.test(text.trim())) return 'email';
+  
+  // Phone number detection
+  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+  if (phoneRegex.test(text.replace(/[\s\-\(\)]/g, ''))) return 'phone';
+  
+  // Number detection
+  if (!isNaN(text.trim()) && text.trim() !== '') return 'number';
+  
+  // Code detection (simple heuristic)
+  if (text.includes('{') || text.includes('function') || text.includes('class ') || text.includes('import ')) return 'code';
+  
+  // Long text
+  if (text.length > 100) return 'longtext';
+  
+  return 'text';
+}
+
+// Enhanced clipboard monitoring with active tab focus
+async function startClipboardMonitoring() {
+  console.log('Starting clipboard monitoring...');
+  
+  // Check clipboard every 500ms when extension is active
+  setInterval(async () => {
+    try {
+      // Get the current active tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs.length) return;
+      
+      // Inject clipboard reading script into active tab
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: readClipboardContent
+        });
+        
+        if (results && results[0] && results[0].result) {
+          const clipboardText = results[0].result;
+          if (clipboardText && clipboardText !== lastClipboardText) {
+            await addClipboardItem(clipboardText);
+          }
+        }
+      } catch (scriptError) {
+        // Silently ignore injection errors (some pages block scripts)
+        // console.log('Could not inject clipboard reader:', scriptError.message);
+      }
+    } catch (error) {
+      console.error('Clipboard monitoring error:', error);
+    }
+  }, 500);
+}
+
+// Function to inject into web pages to read clipboard
+function readClipboardContent() {
   try {
-    // This is a fallback - proper Windows clipboard integration would need native messaging
-    // For now, we'll rely on the popup to manage clipboard items
+    return navigator.clipboard.readText().then(text => text).catch(() => null);
   } catch (error) {
-    console.error('Clipboard check error:', error);
+    return null;
   }
-}, 1000);
+}
+
+// Start clipboard monitoring when extension loads
+chrome.runtime.onStartup.addListener(startClipboardMonitoring);
+chrome.runtime.onInstalled.addListener(startClipboardMonitoring);
+
+// Immediate start
+startClipboardMonitoring();
 
 // Handle messages from content scripts or popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

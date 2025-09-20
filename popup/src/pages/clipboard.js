@@ -6,9 +6,10 @@ const ClipboardPage = ({ copies, setCopies }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleCopyClick = async (copyText, index) => {
+  const handleCopyClick = async (copyItem, index) => {
     try {
-      await navigator.clipboard.writeText(copyText);
+      const text = typeof copyItem === 'string' ? copyItem : copyItem.text;
+      await navigator.clipboard.writeText(text);
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch (error) {
@@ -31,11 +32,26 @@ const ClipboardPage = ({ copies, setCopies }) => {
     }
   };
 
-  const filteredCopies = copies.filter(copy => 
-    copy.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCopies = copies.filter(copy => {
+    const text = typeof copy === 'string' ? copy : copy.text;
+    return text.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
-  const formatTimeAgo = (index) => {
+  const formatTimeAgo = (copyItem, index) => {
+    if (typeof copyItem === 'object' && copyItem.timestamp) {
+      const now = Date.now();
+      const diff = now - copyItem.timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (minutes < 1) return 'Just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      return `${days}d ago`;
+    }
+    
+    // Fallback for old format
     const minutesAgo = index * 2;
     if (minutesAgo === 0) return 'Just now';
     if (minutesAgo < 60) return `${minutesAgo}m ago`;
@@ -43,8 +59,28 @@ const ClipboardPage = ({ copies, setCopies }) => {
     return `${hoursAgo}h ago`;
   };
 
-  const handleItemClick = (copyText, index) => {
-    setSelectedItem({ text: copyText, index });
+  const getContentType = (copyItem) => {
+    if (typeof copyItem === 'object' && copyItem.type) {
+      return copyItem.type.toUpperCase();
+    }
+    return 'TEXT';
+  };
+
+  const getContentTypeColor = (type) => {
+    switch(type.toLowerCase()) {
+      case 'url': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+      case 'email': return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case 'phone': return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+      case 'number': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      case 'code': return 'bg-red-500/20 text-red-300 border-red-500/30';
+      case 'longtext': return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
+      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+    }
+  };
+
+  const handleItemClick = (copyItem, index) => {
+    const text = typeof copyItem === 'string' ? copyItem : copyItem.text;
+    setSelectedItem({ text, index });
   };
 
   const handleShare = async (text) => {
@@ -132,66 +168,78 @@ const ClipboardPage = ({ copies, setCopies }) => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredCopies.map((copyText, index) => (
-                <div 
-                  key={index} 
-                  className="group bg-gradient-to-br from-black/40 to-white/5 backdrop-blur-lg rounded-xl border border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl animate-[slideInFromBottom_0.4s_ease-out] hover:scale-[1.02] cursor-pointer"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                  onClick={() => handleItemClick(copyText, index)}
-                >
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm leading-relaxed break-words font-medium">
-                          {copyText.length > 150 ? `${copyText.substring(0, 150)}...` : copyText}
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                            {formatTimeAgo(index)}
-                          </span>
-                          <span>{copyText.length} chars</span>
-                          {copyText.startsWith('http') && (
-                            <span className="bg-white/10 px-2 py-1 rounded-full border border-white/20">URL</span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyClick(copyText, index);
-                          }}
-                          className={`p-2.5 rounded-lg transition-all duration-300 border ${
-                            copiedIndex === index
-                              ? 'bg-white text-black border-white shadow-lg'
-                              : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40 hover:scale-110'
-                          }`}
-                          title="Copy to clipboard"
-                        >
-                          <div className="w-4 h-4 border-2 border-current rounded-sm"></div>
-                        </button>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCopy(index);
-                          }}
-                          className="p-2.5 rounded-lg bg-black/20 text-gray-300 border border-white/20 hover:bg-black/40 hover:text-white hover:border-white/40 transition-all duration-300 hover:scale-110"
-                          title="Delete item"
-                        >
-                          <div className="w-4 h-4 relative">
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-3 h-0.5 bg-current"></div>
-                            </div>
+              {filteredCopies.map((copyItem, index) => {
+                const text = typeof copyItem === 'string' ? copyItem : copyItem.text;
+                const type = getContentType(copyItem);
+                const typeColor = getContentTypeColor(type);
+                
+                return (
+                  <div 
+                    key={typeof copyItem === 'object' ? copyItem.id : index} 
+                    className="group bg-gradient-to-br from-black/40 to-white/5 backdrop-blur-lg rounded-xl border border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl animate-[slideInFromBottom_0.4s_ease-out] hover:scale-[1.02] cursor-pointer"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                    onClick={() => handleItemClick(copyItem, index)}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm leading-relaxed break-words font-medium">
+                            {text.length > 150 ? `${text.substring(0, 150)}...` : text}
+                          </p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                              {formatTimeAgo(copyItem, index)}
+                            </span>
+                            <span>{text.length} chars</span>
+                            <span className={`px-2 py-1 rounded-full border text-xs font-medium ${typeColor}`}>
+                              {type}
+                            </span>
                           </div>
-                        </button>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyClick(copyItem, index);
+                            }}
+                            className={`p-2.5 rounded-lg border transition-all duration-200 hover:scale-110 active:scale-95 ${
+                              copiedIndex === index 
+                                ? 'bg-white text-black border-white shadow-lg' 
+                                : 'bg-white/10 text-white border-white/30 hover:bg-white/20 hover:border-white/50'
+                            }`}
+                            title="Copy to clipboard"
+                          >
+                            {copiedIndex === index ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            )}
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCopy(index);
+                            }}
+                            className="p-2.5 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 hover:border-red-500/50 transition-all duration-200 hover:scale-110 active:scale-95"
+                            title="Delete item"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
