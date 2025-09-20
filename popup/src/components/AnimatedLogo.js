@@ -22,11 +22,11 @@ const AnimatedLogo = ({ className = '', size = 'md' }) => {
   return (
     <div className={`relative ${sizeClasses[size]} ${className}`}>
       {/* Background logo - always visible */}
-      <img 
-        src="/images/copynew.png" 
-        alt="CopyCache Logo" 
-        className="w-full h-full object-contain opacity-30"
-      />
+      <div className="w-full h-full  rounded-lg border-2 flex items-center justify-center backdrop-blur-sm">
+        <span className="text-white font-bold text-lg tracking-wider drop-shadow-lg">
+          RNS
+        </span>
+      </div>
       
       {/* Animated overlay rectangles */}
       <div className="absolute inset-0 overflow-hidden rounded-lg">
@@ -59,14 +59,14 @@ const AnimatedLogo = ({ className = '', size = 'md' }) => {
       </div>
       
       {/* Main logo - overlaid on top */}
-      <img 
-        src="/images/copynew.png" 
-        alt="CopyCache Logo" 
-        className="absolute inset-0 w-full h-full object-contain z-10 drop-shadow-lg"
-      />
+      <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+        <span className="text-white font-extrabold tracking-[0.2em] drop-shadow-2xl text-shadow-glow">
+          RNS
+        </span>
+      </div>
       
       {/* Glowing border effect */}
-      <div className="absolute inset-0 rounded-lg border-2 border-white/20 shadow-lg animate-[glow_2s_ease-in-out_infinite_alternate]" />
+      <div className="absolute inset-0 rounded-lg border-2 border-white/40 animate-pulse"></div>
     </div>
   );
 };
